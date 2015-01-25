@@ -39,7 +39,13 @@ make_path($target_directory);
 my $csv = Text::CSV->new ( { binary => 1 } ) or die "Cannot use CSV: ".Text::CSV->error_diag ();
 print "Grabbing config file " . $csv_file . "\n" if $debug;
 open my $fh, $csv_file or die "$csv_file: $!";
+my $header_skipped = 0;
 while ( my $row = $csv->getline( $fh ) ) {
+	# Skip the header row
+	if ($header_skipped <= 0) {
+		$header_skipped = 1;
+		next;
+	}
 	push @{ $images }, {
 		url => $row->[0],
 		file_name => $row->[1],
