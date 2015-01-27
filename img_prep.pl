@@ -35,7 +35,7 @@ if ($last_char ne "/") {
 }
 make_path($target_directory);
 
-# Import CSV (url, file_name, image_name, source, desc)
+# Import CSV (url, image_name, source)
 my $csv = Text::CSV->new ( { binary => 1 } ) or die "Cannot use CSV: ".Text::CSV->error_diag ();
 print "Grabbing config file " . $csv_file . "\n" if $debug;
 open my $fh, $csv_file or die "$csv_file: $!";
@@ -48,10 +48,9 @@ while ( my $row = $csv->getline( $fh ) ) {
 	}
 	push @{ $images }, {
 		url => $row->[0],
-		file_name => $row->[1],
-		image_name => $row->[2],
-		source => $row->[3],
-		desc => $row->[4]
+		image_name => $row->[1],
+		source => $row->[2],
+		desc => $row->[1]
 	};
 }
 $csv->eof or $csv->error_diag();
@@ -63,11 +62,15 @@ print "\n\n" if $debug;
 
 # Download urls
 foreach my $image ( @{ $images } ) {
+
+	# Create file name
+	$image->{ file_name } = &create_file_name( $image->{ image_name } );
+
 	# Download Image
-	my $image_data = &download_image( $image->{ url } );
+	my $raw_image = &download_image( $image->{ url } );
 	
 	# Save Image
-	&save_image( $image_data, $image->{ file_name });
+	&save_image( $raw_image, $image->{ file_name } );
 
 	# Resize Image
 	&resize_image($image->{ file_name });
@@ -82,28 +85,44 @@ print "Done!\n";
 exit(0);
 #------------------------------------------
 
+
+# Create file name from image name 
+# @param string $image_name:  Image name
+# @return string $file_name (lowercase $image_name with underscores instead of spaces)
+sub create_file_name {
+	my $image_name = shift;
+	print "Creating file name from " . $image_name . "... " if $debug;
+	$image_name =~ s/ /_/g;
+	my $file_name = lc( $image_name . '.jpg' );
+	print $file_name . "\n" if $debug;
+
+	return $file_name;
+}
+
 # Download image to $target_directory
 # @param string $url:  URL of an image to download
-# @return object $image_data: Image::Grab object for downloaded image
+# @return $image_data->image: encoded image
 sub download_image {
 	my $url = shift;
 	print "Downloading image from " . $url . "\n" if $debug;
 	my $image_data = Image::Grab->new( URL=>$url );
+	my $user_agent = 'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko';
+	$image_data->ua->agent($user_agent);
 	$image_data->grab;
 
-	return $image_data;
+	return $image_data->image;
 }
 
 # Save image to target_directory
-# @param object $image_data = Image::Grab object
+# @param $raw_image = encoded image
 # @param string $file_name = What to name the image
 sub save_image {
-	my $image_data = shift;
+	my $raw_image = shift;
 	my $file_name = shift;
 	my $full_path = $target_directory . $file_name;
 	print "Saving file:" . $full_path . "\n" if $debug;
 	open(IMAGE, ">" . $full_path ) or die "$full_path : $!";
-	print IMAGE $image_data->image;
+	print IMAGE $raw_image;
 	close IMAGE;
 }
 
