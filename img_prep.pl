@@ -7,6 +7,8 @@ use Image::Grab;
 use Text::CSV;
 use File::Path qw(make_path);
 use Getopt::Long;
+use URI;
+use Domain::PublicSuffix;
 
 use Data::Dumper;
 
@@ -35,7 +37,7 @@ if ($last_char ne "/") {
 }
 make_path($target_directory);
 
-# Import CSV (url, image_name, source)
+# Import CSV (url, image_name)
 my $csv = Text::CSV->new ( { binary => 1 } ) or die "Cannot use CSV: ".Text::CSV->error_diag ();
 print "Grabbing config file " . $csv_file . "\n" if $debug;
 open my $fh, $csv_file or die "$csv_file: $!";
@@ -49,7 +51,6 @@ while ( my $row = $csv->getline( $fh ) ) {
 	push @{ $images }, {
 		url => $row->[0],
 		image_name => $row->[1],
-		source => $row->[2],
 		desc => $row->[1]
 	};
 }
@@ -62,6 +63,9 @@ print "\n\n" if $debug;
 
 # Download urls
 foreach my $image ( @{ $images } ) {
+
+	# Create source name
+	$image->{ source } = &create_image_source( $image->{ url } );
 
 	# Create file name
 	$image->{ file_name } = &create_file_name( $image->{ image_name } );
@@ -85,6 +89,19 @@ print "Done!\n";
 exit(0);
 #------------------------------------------
 
+# Create source url from long url
+# @param string $url: $url to shorten
+# @return string $to_return:  Shortened URL
+# Exmample:  http://www.kittens.com/image.jpg would be shortened to kittens.com
+sub create_image_source {
+	my $full_url = shift;
+	my $url = URI->new( $full_url );
+	my $domain = $url->host;
+	my $suffix = Domain::PublicSuffix->new();
+ 	my $to_return = $suffix->get_root_domain($domain);
+
+	return $to_return;
+}
 
 # Create file name from image name 
 # @param string $image_name:  Image name
