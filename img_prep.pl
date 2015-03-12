@@ -31,7 +31,7 @@ if (!$target_directory || !$csv_file ) {
 }
 
 # Create target_directory if it doesn't exist ( and make sure it has a trailing forward slash)
-my $last_char = chop($target_directory);
+my $last_char = substr($target_directory, -1);
 if ($last_char ne "/") {
 	$target_directory .= "/";
 }
@@ -125,6 +125,7 @@ sub download_image {
 	my $image_data = Image::Grab->new( URL=>$url );
 	my $user_agent = 'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko';
 	$image_data->ua->agent($user_agent);
+	$image_data->ua->ssl_opts('verify_hostname'=>0);
 	$image_data->grab;
 
 	return $image_data->image;
